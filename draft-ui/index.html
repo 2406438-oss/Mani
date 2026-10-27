@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MANI — проверка API</title>
+  <link rel="stylesheet" href="/draft/style.css" />
+</head>
+<body>
+  <main>
+    <header><h1>MANI · черновой интерфейс</h1><p>Тестирование API, без дизайна прототипа</p></header>
+    <p id="notice" role="status" aria-live="polite"></p>
+    <section id="auth-panel">
+      <h2>Вход или регистрация</h2>
+      <form id="login-form">
+        <label>Email <input name="email" type="email" required value="client@mani.local" /></label>
+        <label>Пароль <input name="password" type="password" required value="ClientDemo!24" /></label>
+        <button>Войти</button>
+      </form>
+      <details><summary>Создать аккаунт клиента</summary>
+        <form id="register-form">
+          <label>Имя <input name="fullName" required maxlength="100" /></label>
+          <label>Email <input name="email" type="email" required /></label>
+          <label>Телефон <input name="phone" maxlength="30" /></label>
+          <label>Пароль (от 10 символов) <input name="password" type="password" minlength="10" required /></label>
+          <button>Зарегистрироваться</button>
+        </form>
+      </details>
+    </section>
+    <section id="app-panel" hidden>
+      <div class="row"><h2 id="current-user"></h2><button id="logout">Выйти</button></div>
+      <nav>
+        <button data-tab="book">Записаться</button>
+        <button data-tab="mine">Мои записи</button>
+        <button data-tab="admin" id="admin-tab" hidden>Администрирование</button>
+      </nav>
+      <section id="tab-book">
+        <h3>Новая запись</h3>
+        <form id="booking-form">
+          <label>Услуги <select id="services" multiple size="5" required></select><small>Для нескольких услуг удерживайте Ctrl.</small></label>
+          <label>Мастер <select id="masters" required></select></label>
+          <label>Дата <input id="booking-date" type="date" required /></label>
+          <button type="button" id="find-slots">Показать свободное время</button>
+          <div id="slots" class="slots"></div>
+          <button type="submit" id="confirm-booking" disabled>Подтвердить запись</button>
+        </form>
+      </section>
+      <section id="tab-mine" hidden><h3>Записи</h3><div id="appointments"></div></section>
+      <section id="tab-admin" hidden>
+        <h3>Все записи салона</h3><button id="reload-admin">Обновить</button><div id="admin-appointments"></div>
+        <h3>Создать запись клиента</h3>
+        <form id="admin-booking-form">
+          <label>ID клиента <input name="clientId" type="number" min="1" required /></label>
+          <label>Мастер <select id="admin-master" required></select></label>
+          <label>ID услуги <input name="serviceId" type="number" min="1" required /></label>
+          <label>Начало визита (ваше местное время) <input name="startsAt" type="datetime-local" required /></label>
+          <label><input name="intentionalOverlap" type="checkbox" /> Осознанно разрешить наложение</label>
+          <button>Создать запись</button>
+        </form>
+        <h3>Добавить услугу</h3>
+        <form id="admin-service-form">
+          <label>Название <input name="title" maxlength="100" required /></label>
+          <label>Длительность, минуты <input name="durationMin" type="number" min="15" max="600" required /></label>
+          <label>Цена, копейки <input name="priceKopecks" type="number" min="0" required /></label>
+          <button>Создать услугу</button>
+        </form>
+        <h3>Добавить мастера</h3>
+        <form id="admin-master-form">
+          <label>Имя <input name="fullName" maxlength="100" required /></label>
+          <label>Email <input name="email" type="email" maxlength="254" required /></label>
+          <label>Временный пароль <input name="password" type="password" minlength="10" required /></label>
+          <label>Специализация <input name="specialization" maxlength="200" required /></label>
+          <button>Создать мастера</button>
+        </form>
+        <h3>Каталог</h3><div id="admin-catalog"></div>
+      </section>
+    </section>
+  </main>
+  <script src="/draft/app.js" defer></script>
+</body>
+</html>

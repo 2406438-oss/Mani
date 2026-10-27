@@ -1,0 +1,17 @@
+{
+  "name": "mani-booking-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Учебный сервис онлайн-записи MANI на Node.js и SQLite",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "db:migrate": "node backend/scripts/migrate.js",
+    "db:reset": "node backend/scripts/reset.js",
+    "db:seed": "node backend/scripts/seed.js",
+    "start": "node backend/src/server.js",
+    "start:production": "node backend/scripts/migrate.js && node backend/scripts/bootstrap-admin.js && node backend/src/server.js",
+    "dev": "node --watch backend/src/server.js"
+  }
+}

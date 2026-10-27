@@ -1,0 +1,17 @@
+* { box-sizing: border-box; }
+body { margin: 0; padding: 24px; color: #202124; background: #f4f5f7; font: 16px/1.5 Arial, sans-serif; }
+main { max-width: 900px; margin: auto; }
+header, section { margin: 0 0 20px; padding: 20px; border: 1px solid #d7d9de; border-radius: 8px; background: #fff; }
+h1, h2, h3 { margin-top: 0; }
+form { display: grid; gap: 12px; }
+label { display: grid; gap: 5px; }
+input, select, button { max-width: 100%; padding: 9px; font: inherit; }
+button { width: fit-content; cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .5; }
+.row, nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.slots { display: flex; gap: 8px; flex-wrap: wrap; }
+.slots button.selected { outline: 3px solid #333; }
+.card { padding: 12px 0; border-bottom: 1px solid #ddd; }
+#notice { position: sticky; top: 0; z-index: 2; padding: 10px; background: #fff2c7; }
+#notice:empty { display: none; }
+small { color: #555; }
