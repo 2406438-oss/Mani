@@ -1,6 +1,6 @@
 # MANI — сервис онлайн-записи
 
-Учебный проект салона маникюра: Node.js API, SQLite и отдельный черновой интерфейс для ручной проверки. Исходный дизайн-прототип в корне (`index.html`, `styles.css`, `app.js`) не изменяется.
+Учебный проект салона маникюра: Node.js API, SQLite и клиентский интерфейс онлайн-записи. Технический интерфейс в `/draft/` сохранён только для ручной диагностики API.
 
 ## Требования
 
@@ -36,7 +36,7 @@
    npm start
    ```
 
-7. Откройте `http://localhost:3000/draft/`.
+7. Откройте `http://localhost:3000/`. Для администратора после входа с ролью `admin` доступна страница `http://localhost:3000/admin`.
 
 Базу можно полностью создать заново командами `npm run db:reset` и `npm run db:seed`. Файл SQLite появится в `.data/mani.sqlite` и исключён из Git.
 
@@ -63,6 +63,7 @@
 - `POST /api/admin/appointments`, `/api/admin/services`, `/api/admin/masters`, `/api/admin/time-blocks`
 - `GET /api/admin/masters`; `PATCH`/`DELETE /api/admin/services/:id` и `/api/admin/masters/:id`
 - `PUT /api/admin/masters/:id/services`, `POST /api/admin/masters/:id/schedules`, `PATCH /api/admin/settings`
+- `GET /health` — проверка доступности приложения
 
 Защищённые запросы используют `Authorization: Bearer <token>`. Схема БД описана в [`docs/db-schema.md`](docs/db-schema.md); технические решения и известные ограничения — в [`docs/DEVELOPMENT_LOG.md`](docs/DEVELOPMENT_LOG.md).
 

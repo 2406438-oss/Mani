@@ -13,6 +13,7 @@ const db = openDatabase();
 const PORT = Number(process.env.PORT || 3000);
 const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
 const DRAFT_ROOT = path.join(PROJECT_ROOT, 'draft-ui');
+const ADMIN_ROOT = path.join(PROJECT_ROOT, 'admin');
 
 function apiError(status, message) {
   const error = new Error(message);
@@ -68,12 +69,21 @@ function safeUser(userId) {
 }
 
 function authenticate(req) {
-  const match = (req.headers.authorization || '').match(/^Bearer ([A-Za-z0-9_-]{32,})$/);
+  const bearer = (req.headers.authorization || '').match(/^Bearer ([A-Za-z0-9_-]{32,})$/);
+  const cookie = (req.headers.cookie || '').match(/(?:^|;\s*)mani_session=([A-Za-z0-9_-]{32,})(?:;|$)/);
+  const match = bearer || cookie;
   if (!match) throw apiError(401, 'Войдите в аккаунт.');
   const row = db.prepare(`SELECT t.user_id FROM access_tokens t
     WHERE t.token_hash = ? AND t.revoked_at IS NULL AND t.expires_at > ?`).get(hashToken(match[1]), new Date().toISOString());
   if (!row) throw apiError(401, 'Сессия истекла. Войдите снова.');
   return { ...safeUser(Number(row.user_id)), tokenHash: hashToken(match[1]) };
+}
+
+function sessionCookie(token, maxAge = null, secure = false) {
+  const attributes = ['HttpOnly', 'Path=/', 'SameSite=Lax'];
+  if (maxAge !== null) attributes.push(`Max-Age=${maxAge}`);
+  if (secure) attributes.push('Secure');
+  return `mani_session=${token}; ${attributes.join('; ')}`;
 }
 
 function requireRole(user, role) {
@@ -189,15 +199,30 @@ function serveDraft(req, res, pathname) {
   return true;
 }
 
+function serveStatic(req, res, root, pathname, indexPath = '/', allowedFiles = null) {
+  const relative = pathname === indexPath ? 'index.html' : pathname.slice(1);
+  if (allowedFiles && !allowedFiles.includes(relative)) return false;
+  const file = path.resolve(root, relative);
+  if (!file.startsWith(`${root}${path.sep}`) || !fs.existsSync(file) || !fs.statSync(file).isFile()) return false;
+  const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
+  res.writeHead(200, { 'Content-Type': types[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+  fs.createReadStream(file).pipe(res);
+  return true;
+}
+
 async function handle(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = url.pathname;
+  if (req.method === 'GET' && pathname === '/health') return json(res, 200, { status: 'ok' });
   if (!pathname.startsWith('/api/')) {
     if (serveDraft(req, res, pathname)) return;
-    if (pathname === '/') {
-      res.writeHead(302, { Location: '/draft/' }).end();
-      return;
+    if (req.method === 'GET' && (pathname === '/admin' || pathname === '/admin/')) {
+      const user = authenticate(req);
+      requireRole(user, 'admin');
+      return serveStatic(req, res, ADMIN_ROOT, '/');
     }
+    if (req.method === 'GET' && pathname === '/admin.js') return serveStatic(req, res, ADMIN_ROOT, '/admin.js');
+    if (req.method === 'GET' && serveStatic(req, res, PROJECT_ROOT, pathname, '/', ['index.html', 'styles.css', 'app.js'])) return;
     return json(res, 404, { error: 'Страница не найдена.' });
   }
   if (req.method === 'OPTIONS') {
@@ -244,12 +269,14 @@ async function handle(req, res) {
     const { token, hash } = newToken();
     const expiresAt = new Date(Date.now() + Number(process.env.SESSION_TTL_HOURS || 12) * 3600000).toISOString();
     db.prepare('INSERT INTO access_tokens (token_hash, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)').run(hash, user.id, expiresAt, new Date().toISOString());
+    res.setHeader('Set-Cookie', sessionCookie(token, Math.floor((Date.parse(expiresAt) - Date.now()) / 1000), process.env.NODE_ENV === 'production' || req.headers['x-forwarded-proto'] === 'https'));
     return json(res, 200, { token, expiresAt, user: safeUser(Number(user.id)) });
   }
 
   if (route === 'POST /api/auth/logout') {
     const user = authenticate(req);
     db.prepare('UPDATE access_tokens SET revoked_at = ? WHERE token_hash = ?').run(new Date().toISOString(), user.tokenHash);
+    res.setHeader('Set-Cookie', sessionCookie('', 0, process.env.NODE_ENV === 'production' || req.headers['x-forwarded-proto'] === 'https'));
     return json(res, 200, { message: 'Вы вышли из аккаунта.' });
   }
 
@@ -495,6 +522,6 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => console.log(`MANI API запущен: http://localhost:${PORT}/draft/`));
+server.listen(PORT, () => console.log(`MANI запущен: http://localhost:${PORT}/`));
 process.on('SIGINT', () => { server.close(() => { db.close(); process.exit(0); }); });
 process.on('SIGTERM', () => { server.close(() => { db.close(); process.exit(0); }); });

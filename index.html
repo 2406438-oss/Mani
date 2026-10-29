@@ -6,44 +6,38 @@
     <title>MANI — онлайн-запись</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Prata&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="app-shell">
       <section class="screen is-active" id="home">
-        <header class="topbar"><a class="brand" href="#home">MANI<span>·</span></a><button class="text-button" type="button" data-go="booking">Записаться</button></header>
+        <header class="topbar"><a class="brand" href="#home">MANI<span>·</span></a><div class="header-actions"><button class="text-button" type="button" data-action="account">Войти</button><button class="text-button" type="button" data-go="booking">Записаться</button></div></header>
         <div class="hero"><p class="eyebrow">Студия маникюра в Москве</p><h1>Красота —<br />в вашем ритме.</h1><p class="hero-copy">Уютная студия, где каждая деталь создана для вашего спокойствия и безупречного результата.</p><button class="primary-button" type="button" data-go="booking">Выбрать время <span>→</span></button></div>
         <div class="hero-art" aria-label="Декоративное изображение маникюра"><div class="art-note">your<br />little<br />ritual</div><div class="hand hand-one"></div><div class="hand hand-two"></div><div class="sparkle one">✦</div><div class="sparkle two">✦</div></div>
         <section class="benefits"><article><span>01</span><h2>Бережно</h2><p>Премиальные материалы и забота о комфорте.</p></article><article><span>02</span><h2>Красиво</h2><p>Форма и оттенок, которые подчеркнут именно вас.</p></article><article><span>03</span><h2>Вовремя</h2><p>Онлайн-запись без звонков и ожидания.</p></article></section>
       </section>
 
       <section class="screen" id="booking">
-        <header class="topbar"><button class="back-button" type="button" data-go="home">← <span>На главную</span></button><a class="brand" href="#home" data-go="home">MANI<span>·</span></a></header>
-        <div class="booking-layout"><aside class="booking-intro"><p class="eyebrow">Онлайн-запись</p><h1>Выберите время<br />для себя.</h1><p>Это займёт всего минуту. Мы пришлём напоминание за день до визита.</p><div class="step-indicator"><b>01</b><span></span><em>02</em></div></aside>
+        <header class="topbar"><button class="back-button" type="button" data-go="home">← <span>На главную</span></button><a class="brand" href="#home" data-go="home">MANI<span>·</span></a><button class="text-button" type="button" data-action="account">Профиль</button></header>
+        <div class="booking-layout"><aside class="booking-intro"><p class="eyebrow">Онлайн-запись</p><h1>Выберите время<br />для себя.</h1><p>Выберите услугу, мастера и удобный свободный интервал.</p><div class="step-indicator"><b>01</b><span></span><em>02</em></div></aside>
           <form class="booking-form" id="booking-form">
-            <fieldset><legend>Услуга</legend><div class="choice-list service-list">
-              <label><input type="radio" name="service" value="Маникюр с покрытием" checked /><span><b>Маникюр с покрытием</b><small>2 ч · 2 400 ₽</small></span><i>✓</i></label>
-              <label><input type="radio" name="service" value="Экспресс-маникюр" /><span><b>Экспресс-маникюр</b><small>1 ч · 1 500 ₽</small></span><i>✓</i></label>
-              <label><input type="radio" name="service" value="Маникюр без покрытия" /><span><b>Маникюр без покрытия</b><small>1 ч 15 мин · 1 700 ₽</small></span><i>✓</i></label>
-            </div></fieldset>
-            <fieldset><legend>Мастер</legend><div class="choice-list master-list">
-              <label><input type="radio" name="master" value="Алина, топ-мастер" checked /><span class="avatar alina">А</span><span><b>Алина</b><small>Топ-мастер · стаж 6 лет</small></span><i>✓</i></label>
-              <label><input type="radio" name="master" value="Вера, мастер" /><span class="avatar vera">В</span><span><b>Вера</b><small>Мастер · стаж 4 года</small></span><i>✓</i></label>
-            </div></fieldset>
-            <fieldset><legend>Дата и время</legend><div class="date-list">
-              <label><input type="radio" name="date" value="Сегодня, 16 сентября" /><span><b>Сегодня</b><small>16 сен</small></span></label><label><input type="radio" name="date" value="Завтра, 17 сентября" checked /><span><b>Завтра</b><small>17 сен</small></span></label><label><input type="radio" name="date" value="Четверг, 18 сентября" /><span><b>Чт</b><small>18 сен</small></span></label><label><input type="radio" name="date" value="Пятница, 19 сентября" /><span><b>Пт</b><small>19 сен</small></span></label>
-            </div><div class="time-list"><label><input type="radio" name="time" value="10:00" /><span>10:00</span></label><label><input type="radio" name="time" value="12:30" checked /><span>12:30</span></label><label><input type="radio" name="time" value="15:00" /><span>15:00</span></label><label><input type="radio" name="time" value="18:30" /><span>18:30</span></label></div></fieldset>
-            <button class="primary-button form-submit" type="submit">Продолжить <span>→</span></button>
+            <p class="form-notice" id="booking-notice" role="status" aria-live="polite"></p>
+            <fieldset><legend>Услуга</legend><div class="choice-list service-list" id="service-list"><p class="empty-message">Загружаем услуги…</p></div></fieldset>
+            <fieldset><legend>Мастер</legend><div class="choice-list master-list" id="master-list"><p class="empty-message">Сначала выберите услугу.</p></div></fieldset>
+            <fieldset><legend>Дата и время</legend><div class="date-list" id="date-list"></div><div class="time-list" id="time-list"><p class="empty-message">Выберите услугу, мастера и дату.</p></div></fieldset>
+            <button class="primary-button form-submit" type="submit" id="booking-submit" disabled>Подтвердить запись <span>→</span></button>
           </form>
         </div>
       </section>
 
       <section class="screen confirmation" id="confirmation">
         <header class="topbar"><a class="brand" href="#home" data-go="home">MANI<span>·</span></a></header>
-        <div class="confirmation-card"><div class="success-mark">✓</div><p class="eyebrow">Запись подтверждена</p><h1>До встречи<br />в студии.</h1><p class="confirmation-copy">Мы сохранили для вас это время и отправим напоминание за день до визита.</p><div class="appointment-details"><div><span>Услуга</span><b id="summary-service">Маникюр с покрытием</b></div><div><span>Мастер</span><b id="summary-master">Алина, топ-мастер</b></div><div><span>Дата и время</span><b id="summary-date">Завтра, 17 сентября · 12:30</b></div></div><button class="primary-button" type="button" data-go="home">На главную <span>→</span></button></div>
+        <div class="confirmation-card"><div class="success-mark">✓</div><p class="eyebrow">Запись подтверждена</p><h1>До встречи<br />в студии.</h1><p class="confirmation-copy">Мы сохранили для вас это время.</p><div class="appointment-details"><div><span>Услуга</span><b id="summary-service"></b></div><div><span>Мастер</span><b id="summary-master"></b></div><div><span>Дата и время</span><b id="summary-date"></b></div></div><button class="primary-button" type="button" data-go="home">На главную <span>→</span></button></div>
       </section>
     </main>
-    <script src="app.js"></script>
+
+    <dialog class="account-dialog" id="account-dialog"><button class="dialog-close" type="button" data-action="close-account" aria-label="Закрыть">×</button><section id="guest-panel"><p class="eyebrow">Личный кабинет</p><h2>Войдите, чтобы<br />подтвердить запись.</h2><p class="form-notice" id="auth-notice" role="status"></p><form id="login-form"><label>Email<input name="email" type="email" autocomplete="email" required /></label><label>Пароль<input name="password" type="password" autocomplete="current-password" required /></label><button class="primary-button" type="submit">Войти <span>→</span></button></form><details><summary>Создать аккаунт</summary><form id="register-form"><label>Имя<input name="fullName" maxlength="100" autocomplete="name" required /></label><label>Email<input name="email" type="email" maxlength="254" autocomplete="email" required /></label><label>Телефон<input name="phone" maxlength="30" autocomplete="tel" /></label><label>Пароль<input name="password" type="password" minlength="10" autocomplete="new-password" required /></label><button class="secondary-button" type="submit">Зарегистрироваться</button></form></details></section><section id="member-panel" hidden><p class="eyebrow">Личный кабинет</p><h2 id="member-name"></h2><p id="member-email" class="muted-copy"></p><div class="account-links"><a id="admin-link" href="/admin" hidden>Управление салоном</a><button class="secondary-button" id="logout-button" type="button">Выйти</button></div><h3>Мои записи</h3><div id="my-appointments" class="appointments"></div></section></dialog>
+    <script src="app.js" defer></script>
   </body>
 </html>
