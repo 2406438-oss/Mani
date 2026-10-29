@@ -184,8 +184,9 @@ $('#login-form').addEventListener('submit', async (event) => {
 $('#register-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   try {
-    await api('/auth/register', { method: 'POST', body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget))) });
-    event.currentTarget.reset();
+    const form = event.currentTarget;
+    await api('/auth/register', { method: 'POST', body: JSON.stringify(Object.fromEntries(new FormData(form))) });
+    form.reset();
     authNotice('Аккаунт создан. Войдите с указанным email и паролем.');
   } catch (error) { authNotice(error.message); }
 });
@@ -205,7 +206,24 @@ document.addEventListener('click', (event) => {
   if (target.dataset.action === 'close-account') $('#account-dialog').close();
 });
 
-if (token) api('/appointments/my').then(() => {
-  const storedUser = sessionStorage.getItem('mani_user');
-  if (storedUser) return displayMember(JSON.parse(storedUser));
-}).catch(() => { token = null; sessionStorage.removeItem('mani_token'); sessionStorage.removeItem('mani_user'); });
+async function restoreSession() {
+  try {
+    if (token) {
+      await api('/appointments/my');
+      const storedUser = sessionStorage.getItem('mani_user');
+      if (storedUser) await displayMember(JSON.parse(storedUser));
+      return;
+    }
+    const result = await api('/auth/me');
+    await displayMember(result.user);
+    if (new URLSearchParams(location.search).get('oauth') === 'success') $('#account-dialog').showModal();
+  } catch (error) {
+    token = null; sessionStorage.removeItem('mani_token'); sessionStorage.removeItem('mani_user');
+    const params = new URLSearchParams(location.search);
+    if (params.has('oauth_error')) { $('#account-dialog').showModal(); authNotice('Не удалось войти через Яндекс ID. Повторите попытку или используйте email.'); }
+  } finally {
+    if (location.search.includes('oauth')) history.replaceState({}, '', location.pathname);
+  }
+}
+
+restoreSession();

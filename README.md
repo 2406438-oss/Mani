@@ -53,7 +53,8 @@
 
 ## API
 
-- `POST /api/auth/register`, `/api/auth/login`, `/api/auth/logout`
+- `POST /api/auth/register`, `/api/auth/login`, `/api/auth/logout`; `GET /api/auth/me`
+- `GET /api/auth/yandex`, `GET /api/auth/yandex/callback` — вход через Яндекс ID
 - `GET /api/services`, `/api/masters`
 - `GET /api/masters/:id/slots?date=YYYY-MM-DD&serviceIds=1,2`
 - `POST /api/holds`, `POST /api/appointments`
@@ -69,7 +70,7 @@
 
 ## Данные и безопасность
 
-Пароли хешируются `scrypt` с индивидуальной солью, токены хранятся в БД только в виде SHA-256-хешей. Включены внешние ключи SQLite, параметризованные SQL-запросы, серверные проверки ролей и принадлежности записей, ограничение частоты неудачных входов и триггеры против пересечения записей. Локальная база, `.env` и `node_modules` не должны попадать в репозиторий.
+Пароли хешируются `scrypt` с индивидуальной солью, токены сессий хранятся в БД только в виде SHA-256-хешей. Вход через Яндекс ID использует authorization code flow с PKCE и `state`; в БД сохраняется только постоянный идентификатор провайдера, а токены Яндекса не сохраняются. Включены внешние ключи SQLite, параметризованные SQL-запросы, серверные проверки ролей и принадлежности записей, ограничение частоты неудачных входов и триггеры против пересечения записей. Локальная база, `.env` и `node_modules` не должны попадать в репозиторий.
 
 Перед деплоем нужно подтвердить доступную на хостинге версию Node.js 24.x и наличие постоянного локального диска для SQLite. Совместимость с конкретным тарифом BeGet в этой среде не проверялась.
 
@@ -81,4 +82,5 @@
 - Оставьте `DATABASE_PATH=/data/mani.sqlite` или задайте другой путь внутри постоянного хранилища.
 - В Coolify укажите внутренний порт приложения `3000` и домен `https://mani-test.ru`.
 - В Coolify задайте `ADMIN_EMAIL`, `ADMIN_PASSWORD` (минимум 10 символов) и при необходимости `ADMIN_NAME`. При первом запуске эти переменные создадут администратора; пароль не попадёт в БД в открытом виде, Git или журналы.
+- Для Яндекс ID зарегистрируйте веб-приложение в [Yandex OAuth](https://oauth.yandex.com/), добавьте точный Redirect URI `https://mani-test.ru/api/auth/yandex/callback` и права `login:info`, `login:email`. В Coolify задайте `YANDEX_CLIENT_ID`, `YANDEX_CLIENT_SECRET` и `YANDEX_REDIRECT_URI=https://mani-test.ru/api/auth/yandex/callback`. Секрет в Git, отчёт и чат не добавляйте.
 - Не запускайте `npm run db:seed` в production: он создаёт публично известные демонстрационные учётные записи.

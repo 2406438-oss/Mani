@@ -5,6 +5,7 @@ require('./env');
 const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
+const { createHash, randomBytes, timingSafeEqual } = require('node:crypto');
 const { openDatabase, transaction } = require('./db');
 const { availableSlots, createHold, serviceDetails, validIso } = require('./availability');
 const { hashPassword, verifyPassword, newToken, hashToken } = require('./security');
@@ -84,6 +85,49 @@ function sessionCookie(token, maxAge = null, secure = false) {
   if (maxAge !== null) attributes.push(`Max-Age=${maxAge}`);
   if (secure) attributes.push('Secure');
   return `mani_session=${token}; ${attributes.join('; ')}`;
+}
+
+function cookieValue(req, name) {
+  const match = (req.headers.cookie || '').match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
+  return match ? match[1] : null;
+}
+
+function secureRequest(req) {
+  return process.env.NODE_ENV === 'production' || req.headers['x-forwarded-proto'] === 'https';
+}
+
+function clearCookie(name, secure) {
+  const attributes = ['HttpOnly', 'Path=/', 'SameSite=Lax', 'Max-Age=0'];
+  if (secure) attributes.push('Secure');
+  return `${name}=; ${attributes.join('; ')}`;
+}
+
+function createSession(userId) {
+  const { token, hash } = newToken();
+  const expiresAt = new Date(Date.now() + Number(process.env.SESSION_TTL_HOURS || 12) * 3600000).toISOString();
+  db.prepare('INSERT INTO access_tokens (token_hash, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)').run(hash, userId, expiresAt, new Date().toISOString());
+  return { token, expiresAt };
+}
+
+function yandexConfig() {
+  const clientId = process.env.YANDEX_CLIENT_ID?.trim();
+  const clientSecret = process.env.YANDEX_CLIENT_SECRET;
+  const redirectUri = process.env.YANDEX_REDIRECT_URI?.trim();
+  if (!clientId || !clientSecret || !redirectUri || !/^https:\/\//.test(redirectUri)) throw apiError(503, 'Вход через Яндекс ID пока не настроен.');
+  return { clientId, clientSecret, redirectUri };
+}
+
+function equalValue(left, right) {
+  const a = Buffer.from(left || '');
+  const b = Buffer.from(right || '');
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+async function yandexJson(url, options) {
+  const response = await fetch(url, options);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw apiError(502, 'Яндекс ID временно не ответил. Повторите попытку позже.');
+  return data;
 }
 
 function requireRole(user, role) {
@@ -266,17 +310,78 @@ async function handle(req, res) {
     recordAttempt(identity, ok);
     recordAttempt(ipIdentity, ok);
     if (!ok) throw apiError(401, 'Неверный email или пароль.');
-    const { token, hash } = newToken();
-    const expiresAt = new Date(Date.now() + Number(process.env.SESSION_TTL_HOURS || 12) * 3600000).toISOString();
-    db.prepare('INSERT INTO access_tokens (token_hash, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)').run(hash, user.id, expiresAt, new Date().toISOString());
-    res.setHeader('Set-Cookie', sessionCookie(token, Math.floor((Date.parse(expiresAt) - Date.now()) / 1000), process.env.NODE_ENV === 'production' || req.headers['x-forwarded-proto'] === 'https'));
+    const { token, expiresAt } = createSession(user.id);
+    res.setHeader('Set-Cookie', sessionCookie(token, Math.floor((Date.parse(expiresAt) - Date.now()) / 1000), secureRequest(req)));
     return json(res, 200, { token, expiresAt, user: safeUser(Number(user.id)) });
+  }
+
+  if (route === 'GET /api/auth/me') {
+    const user = authenticate(req);
+    return json(res, 200, { user: safeUser(user.id) });
+  }
+
+  if (route === 'GET /api/auth/yandex') {
+    const { clientId, redirectUri } = yandexConfig();
+    const state = randomBytes(24).toString('base64url');
+    const verifier = randomBytes(48).toString('base64url');
+    const challenge = createHash('sha256').update(verifier).digest('base64url');
+    const params = new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: redirectUri, scope: 'login:info,login:email', state, code_challenge: challenge, code_challenge_method: 'S256' });
+    res.writeHead(302, {
+      Location: `https://oauth.yandex.com/authorize?${params}`,
+      'Set-Cookie': `mani_yandex_oauth=${state}.${verifier}; HttpOnly; Path=/; SameSite=Lax; Max-Age=600${secureRequest(req) ? '; Secure' : ''}`,
+      'Cache-Control': 'no-store',
+    }).end();
+    return;
+  }
+
+  if (route === 'GET /api/auth/yandex/callback') {
+    const secure = secureRequest(req);
+    const failure = (reason) => {
+      res.writeHead(302, { Location: `/?oauth_error=${encodeURIComponent(reason)}`, 'Set-Cookie': clearCookie('mani_yandex_oauth', secure), 'Cache-Control': 'no-store' }).end();
+    };
+    if (url.searchParams.has('error')) return failure('yandex_denied');
+    const code = url.searchParams.get('code');
+    const state = url.searchParams.get('state');
+    const [savedState, verifier] = (cookieValue(req, 'mani_yandex_oauth') || '').split('.', 2);
+    if (!code || !state || !savedState || !verifier || !equalValue(state, savedState)) return failure('invalid_state');
+    try {
+      const { clientId, clientSecret, redirectUri } = yandexConfig();
+      const tokenData = await yandexJson('https://oauth.yandex.com/token', {
+        method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ grant_type: 'authorization_code', code, client_id: clientId, client_secret: clientSecret, redirect_uri: redirectUri, code_verifier: verifier }),
+      });
+      if (typeof tokenData.access_token !== 'string') throw apiError(502, 'Яндекс ID не выдал токен доступа.');
+      const profile = await yandexJson('https://login.yandex.ru/info?format=json', { headers: { Authorization: `OAuth ${tokenData.access_token}` } });
+      const providerUserId = String(profile.id || profile.uid || '');
+      const email = typeof profile.default_email === 'string' ? profile.default_email.trim().toLowerCase() : typeof profile.email === 'string' ? profile.email.trim().toLowerCase() : '';
+      const fullName = typeof profile.real_name === 'string' ? profile.real_name.trim() : typeof profile.display_name === 'string' ? profile.display_name.trim() : typeof profile.login === 'string' ? profile.login.trim() : '';
+      if (!providerUserId || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !fullName) throw apiError(502, 'Яндекс ID не вернул обязательные данные профиля.');
+      const userId = transaction(db, () => {
+        const identity = db.prepare("SELECT user_id FROM external_identities WHERE provider = 'yandex' AND provider_user_id = ?").get(providerUserId);
+        if (identity) return Number(identity.user_id);
+        if (db.prepare('SELECT 1 FROM users WHERE email = ?').get(email)) throw apiError(409, 'Аккаунт с таким email уже существует. Войдите паролем.');
+        const result = db.prepare('INSERT INTO users (email, password_hash, full_name, created_at) VALUES (?, ?, ?, ?)')
+          .run(email, hashPassword(randomBytes(32).toString('base64url')), fullName.slice(0, 100), new Date().toISOString());
+        const id = Number(result.lastInsertRowid);
+        db.prepare("INSERT INTO user_roles (user_id, role) VALUES (?, 'client')").run(id);
+        db.prepare("INSERT INTO external_identities (provider, provider_user_id, user_id, created_at) VALUES ('yandex', ?, ?, ?)").run(providerUserId, id, new Date().toISOString());
+        return id;
+      });
+      const session = createSession(userId);
+      res.writeHead(302, { Location: '/?oauth=success', 'Set-Cookie': [sessionCookie(session.token, Math.floor((Date.parse(session.expiresAt) - Date.now()) / 1000), secure), clearCookie('mani_yandex_oauth', secure)], 'Cache-Control': 'no-store' }).end();
+    } catch (error) {
+      if (error.status === 409) return failure('email_exists');
+      if (error.status === 503) return failure('not_configured');
+      console.error('Yandex OAuth error:', error.message);
+      return failure('failed');
+    }
+    return;
   }
 
   if (route === 'POST /api/auth/logout') {
     const user = authenticate(req);
     db.prepare('UPDATE access_tokens SET revoked_at = ? WHERE token_hash = ?').run(new Date().toISOString(), user.tokenHash);
-    res.setHeader('Set-Cookie', sessionCookie('', 0, process.env.NODE_ENV === 'production' || req.headers['x-forwarded-proto'] === 'https'));
+    res.setHeader('Set-Cookie', sessionCookie('', 0, secureRequest(req)));
     return json(res, 200, { message: 'Вы вышли из аккаунта.' });
   }
 
