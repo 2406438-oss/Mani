@@ -394,21 +394,27 @@ async function handle(req, res) {
     const specialization = requireString(body.specialization, 'специализация', 200);
     if (body.serviceIds !== undefined && (!Array.isArray(body.serviceIds) || body.serviceIds.length > 30)) throw apiError(400, 'Список услуг должен быть массивом.');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 10) throw apiError(400, 'Проверьте email и пароль (минимум 10 символов).');
-    const masterId = transaction(db, () => {
-      const created = db.prepare('INSERT INTO users (email, password_hash, full_name, created_at) VALUES (?, ?, ?, ?)')
-        .run(email, hashPassword(password), name, new Date().toISOString());
-      const userId = Number(created.lastInsertRowid);
-      db.prepare("INSERT INTO user_roles (user_id, role) VALUES (?, 'master')").run(userId);
-      const profile = db.prepare('INSERT INTO masters (user_id, specialization) VALUES (?, ?)').run(userId, specialization);
-      const id = Number(profile.lastInsertRowid);
-      const addService = db.prepare('INSERT INTO master_services (master_id, service_id) VALUES (?, ?)');
-      for (const serviceId of body.serviceIds || []) {
-        const serviceIdNumber = Number(serviceId);
-        if (!Number.isSafeInteger(serviceIdNumber) || !db.prepare('SELECT 1 FROM services WHERE id = ? AND is_active = 1').get(serviceIdNumber)) throw apiError(400, 'Выбрана неизвестная услуга.');
-        addService.run(id, serviceIdNumber);
-      }
-      return id;
-    });
+    let masterId;
+    try {
+      masterId = transaction(db, () => {
+        const created = db.prepare('INSERT INTO users (email, password_hash, full_name, created_at) VALUES (?, ?, ?, ?)')
+          .run(email, hashPassword(password), name, new Date().toISOString());
+        const userId = Number(created.lastInsertRowid);
+        db.prepare("INSERT INTO user_roles (user_id, role) VALUES (?, 'master')").run(userId);
+        const profile = db.prepare('INSERT INTO masters (user_id, specialization) VALUES (?, ?)').run(userId, specialization);
+        const id = Number(profile.lastInsertRowid);
+        const addService = db.prepare('INSERT INTO master_services (master_id, service_id) VALUES (?, ?)');
+        for (const serviceId of body.serviceIds || []) {
+          const serviceIdNumber = Number(serviceId);
+          if (!Number.isSafeInteger(serviceIdNumber) || !db.prepare('SELECT 1 FROM services WHERE id = ? AND is_active = 1').get(serviceIdNumber)) throw apiError(400, 'Выбрана неизвестная услуга.');
+          addService.run(id, serviceIdNumber);
+        }
+        return id;
+      });
+    } catch (error) {
+      if (String(error.message).includes('UNIQUE')) throw apiError(409, 'Пользователь с таким email уже существует.');
+      throw error;
+    }
     const master = db.prepare('SELECT id, user_id AS userId, specialization, is_active AS isActive FROM masters WHERE id = ?').get(masterId);
     return json(res, 201, { master: { ...master, id: Number(master.id), userId: Number(master.userId), isActive: Boolean(master.isActive) } });
   }
