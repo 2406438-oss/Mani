@@ -325,7 +325,7 @@ async function handle(req, res) {
     const state = randomBytes(24).toString('base64url');
     const verifier = randomBytes(48).toString('base64url');
     const challenge = createHash('sha256').update(verifier).digest('base64url');
-    const params = new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: redirectUri, scope: 'login:info,login:email', state, code_challenge: challenge, code_challenge_method: 'S256' });
+    const params = new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: redirectUri, scope: 'login:info login:email', state, code_challenge: challenge, code_challenge_method: 'S256' });
     res.writeHead(302, {
       Location: `https://oauth.yandex.com/authorize?${params}`,
       'Set-Cookie': `mani_yandex_oauth=${state}.${verifier}; HttpOnly; Path=/; SameSite=Lax; Max-Age=600${secureRequest(req) ? '; Secure' : ''}`,
