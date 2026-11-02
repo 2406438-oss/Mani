@@ -163,9 +163,52 @@ async function displayMember(user) {
   for (const appointment of data.items) {
     const card = document.createElement('article');
     card.className = 'appointment-card';
-    card.textContent = `${formatDate(appointment.startsAt)} · ${appointment.master.name} · ${appointment.services.map((service) => service.title).join(', ')} · ${appointment.status}`;
+    
+    const info = document.createElement('div');
+    info.className = 'appointment-info';
+    info.innerHTML = `
+      <div class="appointment-date">${formatDate(appointment.startsAt)}</div>
+      <div class="appointment-details">
+        <strong>${appointment.master.name}</strong><br>
+        ${appointment.services.map((service) => service.title).join(', ')}
+      </div>
+      <div class="appointment-status status-${appointment.status}">${getStatusText(appointment.status)}</div>
+    `;
+    
+    card.append(info);
+    
+    // Кнопка отмены только для активных записей
+    if (appointment.status === 'booked') {
+      const cancelBtn = document.createElement('button');
+      cancelBtn.type = 'button';
+      cancelBtn.className = 'cancel-appointment-btn';
+      cancelBtn.textContent = 'Отменить';
+      cancelBtn.addEventListener('click', async () => {
+        if (!confirm('Отменить эту запись?')) return;
+        try {
+          await api(`/appointments/${appointment.id}/cancel`, { method: 'POST', body: '{}' });
+          authNotice('Запись отменена.');
+          await displayMember(currentUser);
+        } catch (error) {
+          authNotice(error.message);
+        }
+      });
+      card.append(cancelBtn);
+    }
+    
     container.append(card);
   }
+}
+
+function getStatusText(status) {
+  const statuses = {
+    'booked': 'Активна',
+    'completed': 'Завершена',
+    'cancelled_by_client': 'Отменена',
+    'cancelled_by_salon': 'Отменена салоном',
+    'no_show': 'Не пришли'
+  };
+  return statuses[status] || status;
 }
 
 async function completeLogin(result) {

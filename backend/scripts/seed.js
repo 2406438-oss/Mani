@@ -47,8 +47,30 @@ transaction(db, () => {
   for (const master of masters) for (const service of serviceRows) link.run(master.id, service.id);
 
   const addSchedule = db.prepare('INSERT OR IGNORE INTO schedules (master_id, weekday, starts_at, ends_at) VALUES (?, ?, ?, ?)');
+  const addTimeBlock = db.prepare('INSERT OR IGNORE INTO time_blocks (master_id, starts_at, ends_at, reason) VALUES (?, ?, ?, ?)');
+  
+  // Расписание: вторник-суббота, 10:00-20:00 (weekday: 2=вторник, 6=суббота)
   for (const master of masters) {
-    for (let weekday = 1; weekday <= 6; weekday++) addSchedule.run(master.id, weekday, '09:00', '20:00');
+    for (let weekday = 2; weekday <= 6; weekday++) {
+      addSchedule.run(master.id, weekday, '10:00', '20:00');
+    }
+    
+    // Добавляем обеденный перерыв на неделю вперёд (понедельник можно пропустить)
+    const today = new Date();
+    for (let dayOffset = 0; dayOffset < 14; dayOffset++) {
+      const date = new Date(today);
+      date.setUTCDate(date.getUTCDate() + dayOffset);
+      const weekday = date.getUTCDay() || 7; // 1=пн, 7=вс
+      
+      // Обед только в рабочие дни (вт-сб)
+      if (weekday >= 2 && weekday <= 6) {
+        date.setUTCHours(11, 0, 0, 0); // 14:00 МСК
+        const lunchStart = date.toISOString();
+        date.setUTCHours(12, 0, 0, 0); // 15:00 МСК
+        const lunchEnd = date.toISOString();
+        addTimeBlock.run(master.id, lunchStart, lunchEnd, 'Обеденный перерыв');
+      }
+    }
   }
 
   const setting = db.prepare('INSERT OR IGNORE INTO product_settings (key, value) VALUES (?, ?)');
