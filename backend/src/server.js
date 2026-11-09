@@ -449,7 +449,18 @@ async function handle(req, res) {
       return json(res, 200, { appointment: appointmentById(id) });
     }
     if (req.method === 'PATCH' && !appointmentMatch[2]) {
-      if (!user.roles.includes('admin') && Number(current.client_id) !== user.id) throw apiError(403, 'Переносить запись может её владелец или администратор.');
+      if (!user.roles.includes('admin') && Number(current.client_id) !== user.id) throw apiError(403, 'Изменять запись может её владелец или администратор.');
+      
+      // Изменение статуса (только для администраторов)
+      if (body.status !== undefined) {
+        if (!user.roles.includes('admin')) throw apiError(403, 'Изменять статус может только администратор.');
+        const validStatuses = ['booked', 'completed', 'cancelled_by_salon', 'no_show'];
+        if (!validStatuses.includes(body.status)) throw apiError(400, 'Недопустимый статус.');
+        db.prepare('UPDATE appointments SET status = ?, updated_at = ? WHERE id = ?').run(body.status, new Date().toISOString(), id);
+        return json(res, 200, { appointment: appointmentById(id) });
+      }
+      
+      // Перенос записи
       const startAt = body.startsAt;
       const masterId = body.masterId === undefined ? Number(current.master_id) : Number(body.masterId);
       if (!validIso(startAt)) throw apiError(400, 'Укажите новое время в UTC.');
